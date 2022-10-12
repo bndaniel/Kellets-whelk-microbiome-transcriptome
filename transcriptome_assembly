@@ -114,7 +114,69 @@ blastx -query ./rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta -db ./bl
 
 # conducted in R:
 
+# remove fungi duplicates
+e_value_fungi <- Microbiome_Blast_90_id_Fungi %>%
+  group_by(`query id`) %>%
+  slice_min(n = 1, `e-value`)
 
+percent_identity_fungi <- e_value_fungi %>%
+  group_by(`query id`) %>%
+  slice_max(n = 1, `% identity`)
+
+bit_score_fungi <- percent_identity_fungi %>%
+  group_by(`query id`) %>%
+  slice_max(n = 1, `bitscore`)
+
+no_duplicates_fungi <- bit_score_fungi %>%
+  distinct(`query id`, .keep_all = TRUE)
+
+# remove bacteria duplicates
+e_value_bacteria <- Microbiome_Blast_90_id_Bacteria %>%
+  group_by(`query id`) %>%
+  slice_min(n = 1, `e-value`)
+
+percent_identity_bacteria <- e_value_bacteria %>%
+  group_by(`query id`) %>%
+  slice_max(n = 1, `% identity`)
+
+bit_score_bacteria <- percent_identity_bacteria %>%
+  group_by(`query id`) %>%
+  slice_max(n = 1, `bitscore`)
+
+no_duplicates_bacteria <- bit_score_bacteria %>%
+  distinct(`query id`, .keep_all = TRUE)
+
+# remove viruses duplicates
+e_value_viruses <- Microbiome_Blast_90_id_Viruses %>%
+  group_by(`query id`) %>%
+  slice_min(n = 1, `e-value`)
+
+percent_identity_viruses <- e_value_viruses %>%
+  group_by(`query id`) %>%
+  slice_max(n = 1, `% identity`)
+
+bit_score_viruses <- percent_identity_viruses %>%
+  group_by(`query id`) %>%
+  slice_max(n = 1, `bitscore`)
+
+no_duplicates_viruses <- bit_score_viruses %>%
+  distinct(`query id`, .keep_all = TRUE)
+  
+# remove archaea duplicates
+e_value_archaea <- Microbiome_Blast_90_id_Archaea %>%
+  group_by(`query id`) %>%
+  slice_min(n = 1, `e-value`)
+
+percent_identity_archaea <- e_value_archaea %>%
+  group_by(`query id`) %>%
+  slice_max(n = 1, `% identity`)
+
+bit_score_archaea <- percent_identity_archaea %>%
+  group_by(`query id`) %>%
+  slice_max(n = 1, `bitscore`)
+
+no_duplicates_archaea <- bit_score_archaea %>%
+  distinct(`query id`, .keep_all = TRUE)
 
 
 ### getting gene ids from blast CSVs
