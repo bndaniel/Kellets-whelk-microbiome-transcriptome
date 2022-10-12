@@ -263,7 +263,75 @@ Options  /Mode=Multiple /ErrorOnStdErr=False /ErrorOnMissingOutput=False /RunOnD
 End;
 
 
+### DESEQ in R
 
+# GENE COUNTS MATRIX
+gene_counts_matrix_archaea <- read_tsv(here::here("Abundance Files", "txi.kallisto.archaea.abundance.tsv"))
+
+# Remove gene ID column
+gene_counts_archaea <- gene_counts_matrix_archaea[-1]
+
+# Cast all values as integers and return dataframe
+gene_counts_archaea <- lapply(gene_counts_archaea, as.integer) 
+gene_counts_archaea <- as.data.frame(gene_counts_archaea)
+
+# add GeneIDs as index
+row.names(gene_counts_archaea) <- gene_counts_matrix_archaea$geneIDs
+
+
+# drop Tank 2 columns
+gene_counts_archaea <- subset(gene_counts_archaea, select = -c(T2E1_out, T2E15_out, T2E17_out,
+                                                                T2E2_out, T2E3_out, T2E4_out,
+                                                                 T2E5_out, T2E6_out, T2E7_out,
+                                                                 T2E9_out))
+
+# Read in MetaData
+MetaData <- read_csv(here::here("Abundance Files", "MetaDataFiles", "MetaData.csv"))
+
+
+dds <- DESeqDataSetFromMatrix(countData = gene_counts_archaea, 
+                              colData = MetaData, 
+                              design = ~Condition)
+
+dds <- DESeq(dds)
+
+
+res <- results(dds)
+head(results(dds, tidy=TRUE))
+
+table(res$padj<.05)
+summary(res)
+res <- res[order(res$padj),]
+head(res)
+
+par(mfrow=c(2,3))
+
+plotCounts(dds, gene="NODE_1074596_length_287_cov_1.439252_g833863", intgroup="Condition")
+plotCounts(dds, gene="NODE_370663_length_976_cov_31552.052049_g3082", intgroup="Condition")
+plotCounts(dds, gene="NODE_891261_length_356_cov_4.197880_g650542", intgroup="Condition")
+plotCounts(dds, gene="NODE_342249_length_1058_cov_529.469036_g9688", intgroup="Condition")
+plotCounts(dds, gene="NODE_240804_length_1469_cov_2790.174785_g83854", intgroup="Condition")
+plotCounts(dds, gene="NODE_40009_length_4467_cov_288.691853_g9688", intgroup="Condition")
+
+# VOLCANO PLOT
+
+#reset par
+par(mfrow=c(1,1))
+# Make a basic volcano plot
+with(res, plot(log2FoldChange, -log10(pvalue), pch=20, main="Volcano plot", xlim=c(-3,3)))
+
+# Add colored points: blue if padj<0.01, red if log2FC>1 and padj<0.05)
+with(subset(res, padj<.01 ), points(log2FoldChange, -log10(pvalue), pch=20, col="blue"))
+with(subset(res, padj<.01 & abs(log2FoldChange)>2), points(log2FoldChange, -log10(pvalue), pch=20, col="red"))
+
+
+# PCA
+
+nsub <- sum(rowMeans(counts(dds, normalized=TRUE)) > 5 )
+
+vsdata <- vst(dds, blind=FALSE, nsub)
+
+plotPCA(vsdata, intgroup="Condition")
 
 ________________________________________________________________________________________________________________________________________
 
