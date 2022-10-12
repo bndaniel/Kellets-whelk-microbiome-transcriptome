@@ -22,6 +22,6 @@ De novo transcriptome assembly!....
 
 Transcriptome assembly commands
 <br>
-
+https://github.com/bndaniel/Kellets-whelk-transcriptome-and-microbiome/blob/main/transcriptome_assembly
 
 insert figure of busco comparison
