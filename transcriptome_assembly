@@ -249,6 +249,23 @@ do
    kallisto quant -i /large/whelk/microbiome/transcripts_bacteria.idx -o /large/whelk/microbiome/microbiome_bacteria_kallisto_quant/${sample}_out/ -t 60 /large/whelk/transcriptome/kw_fastq_all_trimmed/${sample}_1_paired.fq.gz /large/whelk/transcriptome/kw_fastq_all_trimmed/${sample}_2_paired.fq.gz 
 done
 
+### Anisto - combining the abundance tsv files for each sample into one abundance file for each microbiome 
+# conducted for each microbial group
+python3 Anisto.py -i root/large/whelk/microbiome/microbiome_bacteria_kallisto_quant -o root/large/whelk/microbiome/microbiome_bacteria_kallisto_quant -p merged;
+Options  /Mode=Multiple /ErrorOnStdErr=False /ErrorOnMissingOutput=False /RunOnDocker=True /ImageName="omicdocker/pandas:latest" /OutputFolder="/Users/joseph/RnaSeqTutorial2013/KallistoPythonPipeline/Test04202020";
+End;
+
+Begin RunEScript /RunOnServer=True;
+SearchFiles "root/large/whelk/microbiome/microbiome_bacteria_kallisto_quant" /Pattern=*.tsv /Recursive=False;
+EScriptName KallistoMergePython;
+Command python3 Anisto.py -i "%FileDirectory%" -o "%FileDirectory%" -p "merged";
+Options  /Mode=Multiple /ErrorOnStdErr=False /ErrorOnMissingOutput=False /RunOnDocker=True /ImageName="omicdocker/pandas:latest" /OutputFolder="/Users/joseph/RnaSeqTutorial2013/KallistoPythonPipeline/Test04202020";
+End;
+
+
+
+
+________________________________________________________________________________________________________________________________________
 
 
 
