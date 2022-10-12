@@ -61,13 +61,131 @@ docker run -u $(id -u) -v $(pwd):/busco_wd ezlabgva/busco:v5.3.2_cv1 busco -i ./
 docker run -u $(id -u) -v $(pwd):/busco_wd ezlabgva/busco:v5.3.2_cv1 busco -i ./trinity_assembly_1.Trinity.fasta -o ./whelk_trinity_busco_output_05042022_mollusca -m transcriptome  -l mollusca --cpu 250
 
 ________________________________________________________________________________________________________________________________________
-# Microbiome assembly 
+# filtering of RNAspades transcriptome???
+
+
+
+
+
+
+
+
+________________________________________________________________________________________________________________________________________
+# Microbiome transcriptome assembly 
 # conducted 4 different microbiome assemblies: viruses, fungi, archaea, and bacteria
 
+# using BLAST from bioconda 
+
+Conda create -n blast
+Conda activate blast
+conda install -c bioconda blast
+
+### making a protein database from swissprot uniprot for each microbiome transcriptome assembly to blast against
+# archaea database
+makeblastdb -in archaea_uniprot-reviewed_yes+taxonomy_2157.fasta -title pdbaa_archaea -dbtype prot -out pdbaa_archaea -parse_seqids
+
+#bacteria
+makeblastdb -in bacteria_uniprot-reviewed_yes+taxonomy_2.fasta -title pdbaa_bacteria -dbtype prot -out pdbaa_bacteria -parse_seqids
+
+#fungi
+makeblastdb -in fungi_uniprot-reviewed_yes+taxonomy_4751.fasta -title pdbaa_fungi -dbtype prot -out pdbaa_fungi -parse_seqids
+
+#viruses
+makeblastdb -in viruses_uniprot-reviewed_yes+taxonomy_10239.fasta -title pdbaa_viruses -dbtype prot -out pdbaa_viruses -parse_seqids
+
+
+### blasting filtered RNAspades transcriptome to each database
+# parameters: -outfmt 6 (tabular output option with columns sep by tab) and - evalue 1e-5 (filtered based on evalue, high similarity)
+
+# Virus blast
+blastx -query ./rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta -db ./blastdb_reviewed/pdbaa_viruses -out ./viruses_proteins_blastx_1e-5_table.txt -evalue 1e-5 -outfmt 6
+
+# Fungi blast
+blastx -query ./rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta -db ./blastdb_reviewed/pdbaa_fungi -out ./fungi_proteins_blastx_1e-5_table.txt -evalue 1e-5 -outfmt 6
+
+# Bacteria blast
+blastx -query ./rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta -db ./blastdb_reviewed/pdbaa_bacteria -out ./bacteria_proteins_blastx_1e-5_table.txt -evalue 1e-5 -outfmt 6
+
+# Archaea blast
+blastx -query ./rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta -db ./blastdb_reviewed/pdbaa_archaea -out ./archaea_proteins_blastx_1e-5_table.txt -evalue 1e-5 -outfmt 6
+
+
+### Removing duplicate gene ids? or query ids?
+
+# conducted in excel - briefly, 
 
 
 
 
+### getting gene ids from blast CSVs
+!pip install pandas
+
+import numpy as np
+import pandas as pd
+
+blast_results_bacteria = pd.read_csv('/large/whelk/Microbiome Blast No Duplicates - Bacteria.csv')
+
+blast_results_archaea = pd.read_csv('/large/whelk/Microbiome Blast No Duplicates - Archaea.csv')
+
+blast_results_fungi = pd.read_csv('/large/whelk/Microbiome Blast No Duplicates - Fungi.csv')
+
+blast_results_viruses = pd.read_csv('/large/whelk/Microbiome Blast No Duplicates - Viruses.csv')
 
 
+# save each as text file
+np.savetxt('microbiome_bacteria_transcriptome_geneIDs.txt', gene_IDs_bacteria, newline = '\n', fmt = '%s')
+
+np.savetxt('microbiome_archaea_transcriptome_geneIDs.txt', gene_IDs_archaea, newline = '\n', fmt = '%s')
+
+np.savetxt('microbiome_fungi_transcriptome_geneIDs.txt', gene_IDs_fungi, newline = '\n', fmt = '%s')
+
+np.savetxt('microbiome_viruses_transcriptome_geneIDs.txt', gene_IDs_viruses, newline = '\n', fmt = '%s')
+
+
+# seqtk to pull out gene ids from each microbiome blast - creates microbiome transcriptome for each microbial group
+# bioconda seqtk V1.3
+conda create -n seqtk
+conda activate seqtk
+conda install -c bioconda seqtk
+
+# create transcriptome for each microbe group
+seqtk subseq rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta microbiome_bacteria_transcriptome_geneIDs.txt > microbiome_bacteria_transcriptome.fasta
+
+seqtk subseq rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta microbiome_archaea_transcriptome_geneIDs.txt > microbiome_archaea_transcriptome.fasta
+
+seqtk subseq rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta microbiome_fungi_transcriptome_geneIDs.txt > microbiome_fungi_transcriptome.fasta
+
+seqtk subseq rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta microbiome_viruses_transcriptome_geneIDs.txt > microbiome_viruses_transcriptome.fasta
+
+________________________________________________________________________________________________________________________________________
+# Gene count matrices for each sample based on microbial transcriptomes
+# bioconda kallisto 0.48.0
+conda create -n kallisto
+conda activate kallisto
+conda install -c bioconda kallisto
+
+# Kallisto indexing
+kallisto index -i transcripts_bacteria.idx microbiome_bacteria_transcriptome.fasta 
+
+kallisto index -i transcripts_archaea.idx microbiome_archaea_transcriptome.fasta 
+
+kallisto index -i transcripts_fungi.idx microbiome_fungi_transcriptome.fasta 
+
+kallisto index -i transcripts_viruses.idx microbiome_viruses_transcriptome.fasta
+
+### file processing for meta paired end file names
+# Pulling out file names with *_paired.fg.gz in name into one file
+ls | grep _paired.fq.gz > out1.txt
+
+# line separated names into space seperated
+tr '\n' ' ' < out1.txt > out2.txt
+
+# Kallisto quantification for each microbiome transcriptome
+kallisto quant -i /large/whelk/transcripts_bacteria.idx -o /large/whelk/microbiome_bacteria_kallisto_quant/ -t 60 T12E10_1_paired.fq.gz T12E10_2_paired.fq.gz T12E1_1_paired.fq.gz T12E1_2_paired.fq.gz T12E5_1_paired.fq.gz T12E5_2_paired.fq.gz T12E6_1_paired.fq.gz T12E6_2_paired.fq.gz T12E8_1_paired.fq.gz T12E8_2_paired.fq.gz T12E9_1_paired.fq.gz T12E9_2_paired.fq.gz T1E10_1_paired.fq.gz T1E10_2_paired.fq.gz T1E11_1_paired.fq.gz T1E11_2_paired.fq.gz T1E1_1_paired.fq.gz T1E12_1_paired.fq.gz T1E12_2_paired.fq.gz T1E1_2_paired.fq.gz T1E13_1_paired.fq.gz T1E13_2_paired.fq.gz T1E14_1_paired.fq.gz T1E14_2_paired.fq.gz T1E15_1_paired.fq.gz T1E15_2_paired.fq.gz T1E16_1_paired.fq.gz T1E16_2_paired.fq.gz T1E17_1_paired.fq.gz T1E17_2_paired.fq.gz T1E18_1_paired.fq.gz T1E18_2_paired.fq.gz T1E2_1_paired.fq.gz T1E2_2_paired.fq.gz T1E3_1_paired.fq.gz T1E3_2_paired.fq.gz T1E4_1_paired.fq.gz T1E4_2_paired.fq.gz T1E5_1_paired.fq.gz T1E5_2_paired.fq.gz T1E6_1_paired.fq.gz T1E6_2_paired.fq.gz T1E7_1_paired.fq.gz T1E7_2_paired.fq.gz T1E8_1_paired.fq.gz T1E8_2_paired.fq.gz T1E9_1_paired.fq.gz T1E9_2_paired.fq.gz T2E1_1_paired.fq.gz T2E1_2_paired.fq.gz T2E15_1_paired.fq.gz T2E15_2_paired.fq.gz T2E17_1_paired.fq.gz T2E17_2_paired.fq.gz T2E2_1_paired.fq.gz T2E2_2_paired.fq.gz T2E3_1_paired.fq.gz T2E3_2_paired.fq.gz T2E4_1_paired.fq.gz T2E4_2_paired.fq.gz T2E5_1_paired.fq.gz T2E5_2_paired.fq.gz T2E6_1_paired.fq.gz T2E6_2_paired.fq.gz T2E7_1_paired.fq.gz T2E7_2_paired.fq.gz T2E9_1_paired.fq.gz T2E9_2_paired.fq.gz T6E10_1_paired.fq.gz T6E10_2_paired.fq.gz T6E12_1_paired.fq.gz T6E12_2_paired.fq.gz T6E15_1_paired.fq.gz T6E15_2_paired.fq.gz T6E16_1_paired.fq.gz T6E16_2_paired.fq.gz T6E17_1_paired.fq.gz T6E17_2_paired.fq.gz T6E18_1_paired.fq.gz T6E18_2_paired.fq.gz T6E19_1_paired.fq.gz T6E19_2_paired.fq.gz T6E20_1_paired.fq.gz T6E20_2_paired.fq.gz T6E21_1_paired.fq.gz T6E21_2_paired.fq.gz T6E23_1_paired.fq.gz T6E23_2_paired.fq.gz T6E24_1_paired.fq.gz T6E24_2_paired.fq.gz T6E25_1_paired.fq.gz T6E25_2_paired.fq.gz T6E26_1_paired.fq.gz T6E26_2_paired.fq.gz T6E27_1_paired.fq.gz T6E27_2_paired.fq.gz T6E28_1_paired.fq.gz T6E28_2_paired.fq.gz T6E32_1_paired.fq.gz T6E32_2_paired.fq.gz T6E33_1_paired.fq.gz T6E33_2_paired.fq.gz T6E34_1_paired.fq.gz T6E34_2_paired.fq.gz T6E43_1_paired.fq.gz T6E43_2_paired.fq.gz T6E44_1_paired.fq.gz T6E44_2_paired.fq.gz T6E45_1_paired.fq.gz T6E45_2_paired.fq.gz T6E46_1_paired.fq.gz T6E46_2_paired.fq.gz T6E47_1_paired.fq.gz T6E47_2_paired.fq.gz T6E9_1_paired.fq.gz T6E9_2_paired.fq.gz
+
+kallisto quant -i /large/whelk/transcripts_archaea.idx -o /large/whelk/microbiome_bacteria_kallisto_quant/ -t 60 T12E10_1_paired.fq.gz T12E10_2_paired.fq.gz T12E1_1_paired.fq.gz T12E1_2_paired.fq.gz T12E5_1_paired.fq.gz T12E5_2_paired.fq.gz T12E6_1_paired.fq.gz T12E6_2_paired.fq.gz T12E8_1_paired.fq.gz T12E8_2_paired.fq.gz T12E9_1_paired.fq.gz T12E9_2_paired.fq.gz T1E10_1_paired.fq.gz T1E10_2_paired.fq.gz T1E11_1_paired.fq.gz T1E11_2_paired.fq.gz T1E1_1_paired.fq.gz T1E12_1_paired.fq.gz T1E12_2_paired.fq.gz T1E1_2_paired.fq.gz T1E13_1_paired.fq.gz T1E13_2_paired.fq.gz T1E14_1_paired.fq.gz T1E14_2_paired.fq.gz T1E15_1_paired.fq.gz T1E15_2_paired.fq.gz T1E16_1_paired.fq.gz T1E16_2_paired.fq.gz T1E17_1_paired.fq.gz T1E17_2_paired.fq.gz T1E18_1_paired.fq.gz T1E18_2_paired.fq.gz T1E2_1_paired.fq.gz T1E2_2_paired.fq.gz T1E3_1_paired.fq.gz T1E3_2_paired.fq.gz T1E4_1_paired.fq.gz T1E4_2_paired.fq.gz T1E5_1_paired.fq.gz T1E5_2_paired.fq.gz T1E6_1_paired.fq.gz T1E6_2_paired.fq.gz T1E7_1_paired.fq.gz T1E7_2_paired.fq.gz T1E8_1_paired.fq.gz T1E8_2_paired.fq.gz T1E9_1_paired.fq.gz T1E9_2_paired.fq.gz T2E1_1_paired.fq.gz T2E1_2_paired.fq.gz T2E15_1_paired.fq.gz T2E15_2_paired.fq.gz T2E17_1_paired.fq.gz T2E17_2_paired.fq.gz T2E2_1_paired.fq.gz T2E2_2_paired.fq.gz T2E3_1_paired.fq.gz T2E3_2_paired.fq.gz T2E4_1_paired.fq.gz T2E4_2_paired.fq.gz T2E5_1_paired.fq.gz T2E5_2_paired.fq.gz T2E6_1_paired.fq.gz T2E6_2_paired.fq.gz T2E7_1_paired.fq.gz T2E7_2_paired.fq.gz T2E9_1_paired.fq.gz T2E9_2_paired.fq.gz T6E10_1_paired.fq.gz T6E10_2_paired.fq.gz T6E12_1_paired.fq.gz T6E12_2_paired.fq.gz T6E15_1_paired.fq.gz T6E15_2_paired.fq.gz T6E16_1_paired.fq.gz T6E16_2_paired.fq.gz T6E17_1_paired.fq.gz T6E17_2_paired.fq.gz T6E18_1_paired.fq.gz T6E18_2_paired.fq.gz T6E19_1_paired.fq.gz T6E19_2_paired.fq.gz T6E20_1_paired.fq.gz T6E20_2_paired.fq.gz T6E21_1_paired.fq.gz T6E21_2_paired.fq.gz T6E23_1_paired.fq.gz T6E23_2_paired.fq.gz T6E24_1_paired.fq.gz T6E24_2_paired.fq.gz T6E25_1_paired.fq.gz T6E25_2_paired.fq.gz T6E26_1_paired.fq.gz T6E26_2_paired.fq.gz T6E27_1_paired.fq.gz T6E27_2_paired.fq.gz T6E28_1_paired.fq.gz T6E28_2_paired.fq.gz T6E32_1_paired.fq.gz T6E32_2_paired.fq.gz T6E33_1_paired.fq.gz T6E33_2_paired.fq.gz T6E34_1_paired.fq.gz T6E34_2_paired.fq.gz T6E43_1_paired.fq.gz T6E43_2_paired.fq.gz T6E44_1_paired.fq.gz T6E44_2_paired.fq.gz T6E45_1_paired.fq.gz T6E45_2_paired.fq.gz T6E46_1_paired.fq.gz T6E46_2_paired.fq.gz T6E47_1_paired.fq.gz T6E47_2_paired.fq.gz T6E9_1_paired.fq.gz T6E9_2_paired.fq.gz
+
+kallisto quant -i /large/whelk/transcripts_fungi.idx -o /large/whelk/microbiome_bacteria_kallisto_quant/ -t 60 T12E10_1_paired.fq.gz T12E10_2_paired.fq.gz T12E1_1_paired.fq.gz T12E1_2_paired.fq.gz T12E5_1_paired.fq.gz T12E5_2_paired.fq.gz T12E6_1_paired.fq.gz T12E6_2_paired.fq.gz T12E8_1_paired.fq.gz T12E8_2_paired.fq.gz T12E9_1_paired.fq.gz T12E9_2_paired.fq.gz T1E10_1_paired.fq.gz T1E10_2_paired.fq.gz T1E11_1_paired.fq.gz T1E11_2_paired.fq.gz T1E1_1_paired.fq.gz T1E12_1_paired.fq.gz T1E12_2_paired.fq.gz T1E1_2_paired.fq.gz T1E13_1_paired.fq.gz T1E13_2_paired.fq.gz T1E14_1_paired.fq.gz T1E14_2_paired.fq.gz T1E15_1_paired.fq.gz T1E15_2_paired.fq.gz T1E16_1_paired.fq.gz T1E16_2_paired.fq.gz T1E17_1_paired.fq.gz T1E17_2_paired.fq.gz T1E18_1_paired.fq.gz T1E18_2_paired.fq.gz T1E2_1_paired.fq.gz T1E2_2_paired.fq.gz T1E3_1_paired.fq.gz T1E3_2_paired.fq.gz T1E4_1_paired.fq.gz T1E4_2_paired.fq.gz T1E5_1_paired.fq.gz T1E5_2_paired.fq.gz T1E6_1_paired.fq.gz T1E6_2_paired.fq.gz T1E7_1_paired.fq.gz T1E7_2_paired.fq.gz T1E8_1_paired.fq.gz T1E8_2_paired.fq.gz T1E9_1_paired.fq.gz T1E9_2_paired.fq.gz T2E1_1_paired.fq.gz T2E1_2_paired.fq.gz T2E15_1_paired.fq.gz T2E15_2_paired.fq.gz T2E17_1_paired.fq.gz T2E17_2_paired.fq.gz T2E2_1_paired.fq.gz T2E2_2_paired.fq.gz T2E3_1_paired.fq.gz T2E3_2_paired.fq.gz T2E4_1_paired.fq.gz T2E4_2_paired.fq.gz T2E5_1_paired.fq.gz T2E5_2_paired.fq.gz T2E6_1_paired.fq.gz T2E6_2_paired.fq.gz T2E7_1_paired.fq.gz T2E7_2_paired.fq.gz T2E9_1_paired.fq.gz T2E9_2_paired.fq.gz T6E10_1_paired.fq.gz T6E10_2_paired.fq.gz T6E12_1_paired.fq.gz T6E12_2_paired.fq.gz T6E15_1_paired.fq.gz T6E15_2_paired.fq.gz T6E16_1_paired.fq.gz T6E16_2_paired.fq.gz T6E17_1_paired.fq.gz T6E17_2_paired.fq.gz T6E18_1_paired.fq.gz T6E18_2_paired.fq.gz T6E19_1_paired.fq.gz T6E19_2_paired.fq.gz T6E20_1_paired.fq.gz T6E20_2_paired.fq.gz T6E21_1_paired.fq.gz T6E21_2_paired.fq.gz T6E23_1_paired.fq.gz T6E23_2_paired.fq.gz T6E24_1_paired.fq.gz T6E24_2_paired.fq.gz T6E25_1_paired.fq.gz T6E25_2_paired.fq.gz T6E26_1_paired.fq.gz T6E26_2_paired.fq.gz T6E27_1_paired.fq.gz T6E27_2_paired.fq.gz T6E28_1_paired.fq.gz T6E28_2_paired.fq.gz T6E32_1_paired.fq.gz T6E32_2_paired.fq.gz T6E33_1_paired.fq.gz T6E33_2_paired.fq.gz T6E34_1_paired.fq.gz T6E34_2_paired.fq.gz T6E43_1_paired.fq.gz T6E43_2_paired.fq.gz T6E44_1_paired.fq.gz T6E44_2_paired.fq.gz T6E45_1_paired.fq.gz T6E45_2_paired.fq.gz T6E46_1_paired.fq.gz T6E46_2_paired.fq.gz T6E47_1_paired.fq.gz T6E47_2_paired.fq.gz T6E9_1_paired.fq.gz T6E9_2_paired.fq.gz
+
+kallisto quant -i /large/whelk/transcripts_viruses.idx -o /large/whelk/microbiome_bacteria_kallisto_quant/ -t 60 T12E10_1_paired.fq.gz T12E10_2_paired.fq.gz T12E1_1_paired.fq.gz T12E1_2_paired.fq.gz T12E5_1_paired.fq.gz T12E5_2_paired.fq.gz T12E6_1_paired.fq.gz T12E6_2_paired.fq.gz T12E8_1_paired.fq.gz T12E8_2_paired.fq.gz T12E9_1_paired.fq.gz T12E9_2_paired.fq.gz T1E10_1_paired.fq.gz T1E10_2_paired.fq.gz T1E11_1_paired.fq.gz T1E11_2_paired.fq.gz T1E1_1_paired.fq.gz T1E12_1_paired.fq.gz T1E12_2_paired.fq.gz T1E1_2_paired.fq.gz T1E13_1_paired.fq.gz T1E13_2_paired.fq.gz T1E14_1_paired.fq.gz T1E14_2_paired.fq.gz T1E15_1_paired.fq.gz T1E15_2_paired.fq.gz T1E16_1_paired.fq.gz T1E16_2_paired.fq.gz T1E17_1_paired.fq.gz T1E17_2_paired.fq.gz T1E18_1_paired.fq.gz T1E18_2_paired.fq.gz T1E2_1_paired.fq.gz T1E2_2_paired.fq.gz T1E3_1_paired.fq.gz T1E3_2_paired.fq.gz T1E4_1_paired.fq.gz T1E4_2_paired.fq.gz T1E5_1_paired.fq.gz T1E5_2_paired.fq.gz T1E6_1_paired.fq.gz T1E6_2_paired.fq.gz T1E7_1_paired.fq.gz T1E7_2_paired.fq.gz T1E8_1_paired.fq.gz T1E8_2_paired.fq.gz T1E9_1_paired.fq.gz T1E9_2_paired.fq.gz T2E1_1_paired.fq.gz T2E1_2_paired.fq.gz T2E15_1_paired.fq.gz T2E15_2_paired.fq.gz T2E17_1_paired.fq.gz T2E17_2_paired.fq.gz T2E2_1_paired.fq.gz T2E2_2_paired.fq.gz T2E3_1_paired.fq.gz T2E3_2_paired.fq.gz T2E4_1_paired.fq.gz T2E4_2_paired.fq.gz T2E5_1_paired.fq.gz T2E5_2_paired.fq.gz T2E6_1_paired.fq.gz T2E6_2_paired.fq.gz T2E7_1_paired.fq.gz T2E7_2_paired.fq.gz T2E9_1_paired.fq.gz T2E9_2_paired.fq.gz T6E10_1_paired.fq.gz T6E10_2_paired.fq.gz T6E12_1_paired.fq.gz T6E12_2_paired.fq.gz T6E15_1_paired.fq.gz T6E15_2_paired.fq.gz T6E16_1_paired.fq.gz T6E16_2_paired.fq.gz T6E17_1_paired.fq.gz T6E17_2_paired.fq.gz T6E18_1_paired.fq.gz T6E18_2_paired.fq.gz T6E19_1_paired.fq.gz T6E19_2_paired.fq.gz T6E20_1_paired.fq.gz T6E20_2_paired.fq.gz T6E21_1_paired.fq.gz T6E21_2_paired.fq.gz T6E23_1_paired.fq.gz T6E23_2_paired.fq.gz T6E24_1_paired.fq.gz T6E24_2_paired.fq.gz T6E25_1_paired.fq.gz T6E25_2_paired.fq.gz T6E26_1_paired.fq.gz T6E26_2_paired.fq.gz T6E27_1_paired.fq.gz T6E27_2_paired.fq.gz T6E28_1_paired.fq.gz T6E28_2_paired.fq.gz T6E32_1_paired.fq.gz T6E32_2_paired.fq.gz T6E33_1_paired.fq.gz T6E33_2_paired.fq.gz T6E34_1_paired.fq.gz T6E34_2_paired.fq.gz T6E43_1_paired.fq.gz T6E43_2_paired.fq.gz T6E44_1_paired.fq.gz T6E44_2_paired.fq.gz T6E45_1_paired.fq.gz T6E45_2_paired.fq.gz T6E46_1_paired.fq.gz T6E46_2_paired.fq.gz T6E47_1_paired.fq.gz T6E47_2_paired.fq.gz T6E9_1_paired.fq.gz T6E9_2_paired.fq.gz
 
