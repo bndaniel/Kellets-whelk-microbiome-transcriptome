@@ -110,9 +110,9 @@ blastx -query ./rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta -db ./bl
 blastx -query ./rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta -db ./blastdb_reviewed/pdbaa_archaea -out ./archaea_proteins_blastx_1e-5_table.txt -evalue 1e-5 -outfmt 6
 
 
-### Removing duplicate gene ids? or query ids?
+### Removing duplicate query ids
 
-# conducted in excel - briefly, 
+# conducted in R:
 
 
 
@@ -132,7 +132,7 @@ blast_results_fungi = pd.read_csv('/large/whelk/Microbiome Blast No Duplicates -
 blast_results_viruses = pd.read_csv('/large/whelk/Microbiome Blast No Duplicates - Viruses.csv')
 
 
-# save each as text file
+# save each as text file (saving all gen ids from microbial transcriptomes as txt file)
 np.savetxt('microbiome_bacteria_transcriptome_geneIDs.txt', gene_IDs_bacteria, newline = '\n', fmt = '%s')
 
 np.savetxt('microbiome_archaea_transcriptome_geneIDs.txt', gene_IDs_archaea, newline = '\n', fmt = '%s')
