@@ -265,6 +265,8 @@ End;
 
 ### DESEQ in R
 
+## Archaea
+
 # GENE COUNTS MATRIX
 gene_counts_matrix_archaea <- read_tsv(here::here("Abundance Files", "txi.kallisto.archaea.abundance.tsv"))
 
@@ -332,6 +334,214 @@ nsub <- sum(rowMeans(counts(dds, normalized=TRUE)) > 5 )
 vsdata <- vst(dds, blind=FALSE, nsub)
 
 plotPCA(vsdata, intgroup="Condition")
+
+
+## Bacteria
+
+# GENE COUNTS MATRIX
+gene_counts_matrix_bacteria <- read_tsv(here::here("Abundance Files", "Bacteria", "txi.kallisto.bacteria.abundance.tsv"))
+
+# Remove gene ID column
+gene_counts_bacteria <- gene_counts_matrix_bacteria[-1]
+
+# Cast all values as integers and return dataframe
+gene_counts_bacteria <- lapply(gene_counts_bacteria, as.integer) 
+gene_counts_bacteria <- as.data.frame(gene_counts_bacteria)
+
+# add GeneIDs as index
+row.names(gene_counts_bacteria) <- gene_counts_matrix_bacteria$geneIDs
+
+#rounded_gene_counts_matrix <- read_csv(here::here("Abundance Files", "txi.kallisto.bacteria.abundance.rounded.csv"))
+
+# drop Tank 2 columns
+gene_counts_bacteria <- subset(gene_counts_bacteria, select = -c(T2E1_out, T2E15_out, T2E17_out,
+                                                                T2E2_out, T2E3_out, T2E4_out,
+                                                                 T2E5_out, T2E6_out, T2E7_out,
+                                                                 T2E9_out))
+
+# Read in MetaData
+MetaData <- read_csv(here::here("Abundance Files", "MetaDataFiles", "MetaData.csv"))
+
+dds <- DESeqDataSetFromMatrix(countData = gene_counts_bacteria, 
+                              colData = MetaData, 
+                              design = ~Condition)
+
+dds <- DESeq(dds)
+
+res <- results(dds)
+head(results(dds, tidy=TRUE))
+
+table(res$padj<.05)
+summary(res)
+res <- res[order(res$padj),]
+head(res)
+
+# plotCounts
+
+par(mfrow=c(2,3))
+
+plotCounts(dds, gene="NODE_1027889_length_301_cov_1.956140_g787157", intgroup="Condition")
+plotCounts(dds, gene="NODE_1203929_length_258_cov_1.664865_g963193", intgroup="Condition")
+plotCounts(dds, gene="NODE_1000218_length_311_cov_1.718487_g759488", intgroup="Condition")
+plotCounts(dds, gene="NODE_1000335_length_311_cov_1.609244_g759605", intgroup="Condition")
+plotCounts(dds, gene="NODE_1000605_length_311_cov_1.294118_g759875", intgroup="Condition")
+plotCounts(dds, gene="NODE_1000725_length_311_cov_1.243697_g759995", intgroup="Condition")
+
+# VOLCANO PLOT
+
+#reset par
+par(mfrow=c(1,1))
+# Make a basic volcano plot
+with(res, plot(log2FoldChange, -log10(pvalue), pch=20, main="Volcano plot", xlim=c(-3,3)))
+
+# Add colored points: blue if padj<0.01, red if log2FC>1 and padj<0.05)
+with(subset(res, padj<.01 ), points(log2FoldChange, -log10(pvalue), pch=20, col="blue"))
+with(subset(res, padj<.01 & abs(log2FoldChange)>2), points(log2FoldChange, -log10(pvalue), pch=20, col="red"))
+
+# PCA
+
+nsub <- sum(rowMeans(counts(dds, normalized=TRUE)) > 5 )
+
+vsdata <- vst(dds, blind=FALSE, nsub)
+
+plotPCA(vsdata, intgroup="Condition")
+
+
+## Fungi
+
+# GENE COUNTS MATRIX
+gene_counts_matrix_fungi <- read_tsv(here::here("Abundance Files", "txi.kallisto.fungi.abundance.tsv"))
+
+# Remove gene ID column
+gene_counts_fungi <- gene_counts_matrix_fungi[-1]
+
+# Cast all values as integers and return dataframe
+gene_counts_fungi <- lapply(gene_counts_fungi, as.integer) 
+gene_counts_fungi <- as.data.frame(gene_counts_fungi)
+
+# add GeneIDs as index
+row.names(gene_counts_fungi) <- gene_counts_matrix_fungi$geneIDs
+
+# drop Tank 2 columns
+gene_counts_fungi <- subset(gene_counts_fungi, select = -c(T2E1_out, T2E15_out, T2E17_out,
+                                                                T2E2_out, T2E3_out, T2E4_out,
+                                                                 T2E5_out, T2E6_out, T2E7_out,
+                                                                 T2E9_out))
+
+# Read in MetaData
+MetaData <- read_csv(here::here("Abundance Files", "MetaDataFiles", "MetaData.csv"))
+
+dds <- DESeqDataSetFromMatrix(countData = gene_counts_fungi, 
+                              colData = MetaData, 
+                              design = ~Condition)
+
+dds <- DESeq(dds)
+
+res <- results(dds)
+head(results(dds, tidy=TRUE))
+
+summary(res)
+res <- res[order(res$padj),]
+head(res)
+
+par(mfrow=c(2,3))
+
+gene1 <- plotCounts(dds, gene="NODE_389560_length_927_cov_71720.448478_g179335", intgroup="Condition", returnData=TRUE)
+plotCounts(dds, gene="NODE_154477_length_2084_cov_9933.467926_g36785", intgroup="Condition", returnData=TRUE)
+plotCounts(dds, gene="NODE_155961_length_2070_cov_16508.652979_g31861", intgroup="Condition", returnData=TRUE)
+plotCounts(dds, gene="NODE_204142_length_1684_cov_45313.410925_g22902", intgroup="Condition", returnData=TRUE)
+plotCounts(dds, gene="NODE_316944_length_1141_cov_111950.109551_g128414", intgroup="Condition", returnData=TRUE)
+plotCounts(dds, gene="NODE_334253_length_1083_cov_2787.794059_g139871", intgroup="Condition", returnData=TRUE)
+
+#reset par
+par(mfrow=c(1,1))
+# Make a basic volcano plot
+with(res, plot(log2FoldChange, -log10(pvalue), pch=20, main="Volcano plot", xlim=c(-3,3)))
+
+# Add colored points: blue if padj<0.01, red if log2FC>1 and padj<0.05)
+with(subset(res, padj<.01 ), points(log2FoldChange, -log10(pvalue), pch=20, col="blue"))
+with(subset(res, padj<.01 & abs(log2FoldChange)>2), points(log2FoldChange, -log10(pvalue), pch=20, col="red"))
+
+# PCA
+
+nsub <- sum(rowMeans(counts(dds, normalized=TRUE)) > 5 )
+
+vsdata <- vst(dds, blind=FALSE, nsub)
+
+plotPCA(vsdata, intgroup="Condition")
+
+
+## Viruses
+
+# GENE COUNTS MATRIX
+gene_counts_matrix_viruses <- read_tsv(here::here("Abundance Files", "txi.kallisto.viruses.abundance.tsv"))
+
+# Remove gene ID column
+gene_counts_viruses <- gene_counts_matrix_viruses[-1]
+
+# Cast all values as integers and return dataframe
+gene_counts_viruses <- lapply(gene_counts_viruses, as.integer) 
+gene_counts_viruses <- as.data.frame(gene_counts_viruses)
+
+# add GeneIDs as index
+row.names(gene_counts_viruses) <- gene_counts_matrix_viruses$geneIDs
+
+
+# drop Tank 2 columns
+gene_counts_viruses <- subset(gene_counts_viruses, select = -c(T2E1_out, T2E15_out, T2E17_out,
+                                                                T2E2_out, T2E3_out, T2E4_out,
+                                                                 T2E5_out, T2E6_out, T2E7_out,
+                                                                 T2E9_out))
+
+# Read in MetaData
+MetaData <- read_csv(here::here("Abundance Files", "MetaDataFiles", "MetaData.csv"))
+
+dds <- DESeqDataSetFromMatrix(countData = gene_counts_viruses, 
+                              colData = MetaData, 
+                              design = ~Condition)
+
+dds <- DESeq(dds)
+
+res <- results(dds)
+head(results(dds, tidy=TRUE))
+
+# Sort summary list by p-value
+
+table(res$padj<.05)
+summary(res)
+res <- res[order(res$padj),]
+head(res)
+
+# plotCounts
+
+par(mfrow=c(2,3))
+
+plotCounts(dds, gene="NODE_803213_length_403_cov_2288.990909_g562534", intgroup="Condition")
+plotCounts(dds, gene="NODE_417805_length_861_cov_163629.154822_g201360", intgroup="Condition")
+plotCounts(dds, gene="NODE_342151_length_1058_cov_164101.663959_g145291", intgroup="Condition")
+plotCounts(dds, gene="NODE_145708_length_2174_cov_66676.224655_g41788", intgroup="Condition")
+plotCounts(dds, gene="NODE_176334_length_1892_cov_26850.245190_g53825", intgroup="Condition")
+plotCounts(dds, gene="NODE_182103_length_1845_cov_5778.250564_g38243", intgroup="Condition")
+
+# VOLCANO PLOT
+
+#reset par
+par(mfrow=c(1,1))
+# Make a basic volcano plot
+with(res, plot(log2FoldChange, -log10(pvalue), pch=20, main="Volcano plot", xlim=c(-3,3)))
+
+# Add colored points: blue if padj<0.01, red if log2FC>1 and padj<0.05)
+with(subset(res, padj<.01 ), points(log2FoldChange, -log10(pvalue), pch=20, col="blue"))
+with(subset(res, padj<.01 & abs(log2FoldChange)>2), points(log2FoldChange, -log10(pvalue), pch=20, col="red"))
+
+# PCA
+
+nsub <- sum(rowMeans(counts(dds, normalized=TRUE)) > 5 )
+
+vsdata <- vst(dds, blind=FALSE, nsub)
+
+plotPCA(vsdata, intgroup="Condition")
+
 
 ________________________________________________________________________________________________________________________________________
 
