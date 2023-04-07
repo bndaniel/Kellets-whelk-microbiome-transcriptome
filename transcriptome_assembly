@@ -554,5 +554,49 @@ plotPCA(vsdata, intgroup="Condition")
 ________________________________________________________________________________________________________________________________________
 
 
+# genera gene count analysis
+
+IN R:
+
+# file sorting for gen ids
+
+setwd("~/Desktop/filtered_blast")
+gb = read.csv("nodub_combo.csv", header=TRUE) 
+head(gb)
+
+geneids = gb$V1
+geneids
+
+# write as a text file just gene ids
+write(geneids, "genera_geneids.txt")
+
+
+ON SERVER:
+
+# file with gene ids of interest
+conda activate seqtk
+
+seqtk subseq rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta genera_geneids.txt > microbiome_coregenera_transcriptome.fasta
+
+
+# kallisto gene ocunts
+
+conda activate kallisto
+
+kallisto index -i transcripts_genera.idx microbiome_coregenera_transcriptome.fasta 
+
+# gene counts 
+
+for sample in `cat ./sample_list.txt`
+do
+  kallisto quant -i /large/whelk/microbiome/transcripts_genera.idx -o /large/whelk/microbiome/microbiome_coregenera_kallisto_quant/${sample}_out/ -t 60 /large/whelk/transcriptome/kw_fastq_all_trimmed/${sample}_1_paired.fq.gz /large/whelk/transcriptome/kw_fastq_all_trimmed/${sample}_2_paired.fq.gz
+done
+ 
+
+________________________________________________________________________________________________________________________________________
+
+
+
+
 
 
