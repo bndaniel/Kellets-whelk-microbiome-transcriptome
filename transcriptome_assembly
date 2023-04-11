@@ -63,18 +63,100 @@ docker run -u $(id -u) -v $(pwd):/busco_wd ezlabgva/busco:v5.3.2_cv1 busco -i ./
 ________________________________________________________________________________________________________________________________________
 # filtering of RNAspades transcriptome???
 # microbial decontamination
+# Transcriptome filtering for microbial contamination in R
 
-# from the spreadsheet - make gene id file
-gene_IDs_bacteria = blast_results_bacteria['query id'].values
+library(tidyverse)
 
-# not sure - maybe in R
-np.savetxt('microbiome_bacteria_transcriptome_geneIDs.txt', gene_IDs, newline = '\n', fmt = '%s')
+#need to sort and filter all genera blast
+setwd("~/Desktop")
 
-# seqtk to pull out transcriptome with gene ids - how to do the opposite?
-seqtk subseq rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta microbiome_bacteria_transcriptome_geneIDs.txt > microbiome_bacteria_transcriptome.fasta
+rb <- read.csv("Microbiome Blast No Duplicates - All Microbiome (2).csv", header=TRUE)
+rb
+head(rb)
+
+#create new dataframe with blasts above 97% (row with lowest percent at end)
+sorted_rb_97 = subset(rb, rb$X..identity>97)
+
+# removing blasts with query coverage lower than 20
+sorted_rb_97_q = subset(sorted_rb_97, sorted_rb_97$alignment.length>20)
+
+# removing blasts with evalues greater than .001
+sorted_rb_97_q_e = subset(sorted_rb_97_q, sorted_rb_97_q$e.value<0.001)
+
+#removing blasts with bitscores less than 50
+sorted_rb_97_q_e_b = subset(sorted_rb_97_q_e, sorted_rb_97_q_e$bitscore>50)
+
+#putting them in a descending order based on %id
+sorted_rb = sorted_rb_97_q_e_b[order(-sorted_rb_97_q_e_b$X..identity),]
+
+# Remove duplicates based on node id
+nodub_rb = sorted_rb[!duplicated(sorted_rb$query.id), ]
+
+# export files 
+write.csv(nodub_rb, "~/Desktop/microbial_contaminants_blastx_97%_nodub.csv")
 
 
 
+
+# file sorting for gene ids from 97% blast in R
+
+setwd("~/Desktop/filtered_blast")
+gb = read.csv("microbial_contaminants_blastx_97%_nodub.csv", header=TRUE) 
+head(gb)
+
+geneids = gb$V1
+geneids
+
+# write as a text file just gene ids
+write(geneids, "decontamination_geneids.txt")
+
+
+## this just gives me a transcriptome for the contamination... - need to get all other ids
+
+# get all gene ids from transcriptome
+
+grep "^>" ./rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta | cut -d'|' -f3 | cut -d ' ' -f1 > ./geneids.txt
+
+# put into R
+# subtract contaminated gene ids from transcriptome gene ids
+
+geneids = read.table("geneids.txt", header=FALSE)
+
+# remove ">"
+
+geneids$V1<-gsub(">","",as.character(geneids$V1))
+
+# ids to remove
+df2 = data.frame(con_geneids)
+
+# convert to transcriptome gene ids to dataframe
+
+df = data.frame(geneids)
+
+# removing contaminated gene ids from transcriptome gene ids
+# df$V1 = transcriptome geneids, df2$con_geneids = gene ids to remove
+df$V1 %in% df2$con_geneids
+
+# 1448 contaminated gene ids removed
+sorted_df = df$V1 [! df$V1 %in% df2$con_geneids]
+
+# write as a text file
+write(sorted_df, "decontaminated_geneids.txt")
+
+# add file to 
+
+ON SERVER:
+
+# file with decontamination gene ids (added to fitleredspadestranscriptome directory)
+conda activate seqtk
+
+seqtk subseq rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta decontaminated_geneids.txt > rnaspades_assembly_calpoly_annotated_swissprot_nr_decontaminated.fasta
+
+# check busco on new decontaminted transcriptome
+#mollusca
+busco -i ./rnaspades_assembly_calpoly_annotated_swissprot_nr_decontaminated.fasta -o ./decontaminated_transcriptome_busco_04112023_mollusca -m transcriptome  -l mollusca --cpu 250
+#metazoa
+busco -i ./rnaspades_assembly_calpoly_annotated_swissprot_nr_decontaminated.fasta -o ./decontaminated_transcriptome_busco_04112023_metazoa -m transcriptome  -l metazoa_odb10 --cpu 250
 
 
 
