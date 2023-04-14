@@ -1,1 +1,81 @@
 
+### splitting gene ids between microorganism and eukaryota transcriptomes
+
+Conda create -n blast
+Conda activate blast
+conda install -c bioconda blast
+
+# archaea database
+makeblastdb -in archaea_uniprot-reviewed_yes+taxonomy_2157.fasta -title pdbaa_archaea -dbtype prot -out pdbaa_archaea -parse_seqids
+# bacteria
+makeblastdb -in bacteria_uniprot-reviewed_yes+taxonomy_2.fasta -title pdbaa_bacteria -dbtype prot -out pdbaa_bacteria -parse_seqids
+# fungi
+makeblastdb -in fungi_uniprot-reviewed_yes+taxonomy_4751.fasta -title pdbaa_fungi -dbtype prot -out pdbaa_fungi -parse_seqids
+# viruses
+makeblastdb -in viruses_uniprot-reviewed_yes+taxonomy_10239.fasta -title pdbaa_viruses -dbtype prot -out pdbaa_viruses -parse_seqids
+# eukaryota
+makeblastdb -in eukaryota_uniprot_reviewed.fasta -title pdbaa_eukaryota -dbtype prot -out pdbaa_eukaryota -parse_seqids
+
+# virus blast
+blastx -query ./rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta -db ./blastdb_reviewed/pdbaa_viruses -out ./viruses_proteins_blastx_1e-5_table.txt -evalue 1e-5 -outfmt 6
+
+# bacteria blast
+blastx -query ./rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta -db ./blastdb_reviewed/pdbaa_bacteria -out ./bacteria_proteins_blastx_1e-5_table.txt -evalue 1e-5 -outfmt 6
+
+# archaea blast
+blastx -query ./rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta -db ./blastdb_reviewed/pdbaa_archaea -out ./archaea_proteins_blastx_1e-5_table.txt -evalue 1e-5 -outfmt 6
+
+# eukaryota blast
+blastx -query ./rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta -db ./blastdb_reviewed/pdbaa_eukaryota -out ./eukaryota_proteins_blastx_1e-5_table.txt -evalue 1e-5 -outfmt 6
+
+
+# in R, add column signifying origin - either microbiome or eukaryota
+
+setwd("~/Desktop/genera_blast_full")
+v <- read.delim("viruses_proteins_blastx_1e-5_table.txt", header=FALSE)
+b <- read.delim("bacteria_proteins_blastx_1e-5_table.txt", header=FALSE)
+a <- read.delim("archaea_proteins_blastx_1e-5_table.txt", header=FALSE)
+e <- read.delim("eukaryota_proteins_blastx_1e-5_table.txt", header=FALSE)
+
+# adding column signifying origin 
+v$origin = viruses
+b$origin = bacteria
+a$origin = archaea
+e$origin = eukaryota
+
+# adding column signifying group 
+v$group = microorganism
+b$group = microorganism
+a$group = microorganism
+e$group = host
+
+# combining all blasts into one dataframe 
+combo = rbind(v,b,a,e)
+
+# put in order of % identity
+sorted_combo = combo[order(-combo$V3),]
+
+# removed dupicate ids
+nodub_combo = sorted_combo[!duplicated(sorted_combo$V1), ]
+
+# seperate into groups: microorganism and eukaryota
+groups <- split(nodub_combo, nodub_combo$group)
+
+micro = groups$microorganism
+host = groups$host
+
+
+# get gene ids from each group
+micro_geneids = micro$V1
+host_geneids = host$V1
+
+write(micro_geneids, "micro_geneids.txt")
+write(host_geneids, "host_geneids.txt")
+
+
+
+
+
+
+
+
