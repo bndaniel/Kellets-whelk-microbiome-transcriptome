@@ -31,7 +31,7 @@ blastx -query ./rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta -db ./bl
 
 # in R, add column signifying origin - either microbiome or eukaryota
 
-setwd("~/Desktop/genera_blast_full")
+setwd("~/Desktop/transcirptome_filter")
 v <- read.delim("viruses_proteins_blastx_1e-5_table.txt", header=FALSE)
 b <- read.delim("bacteria_proteins_blastx_1e-5_table.txt", header=FALSE)
 a <- read.delim("archaea_proteins_blastx_1e-5_table.txt", header=FALSE)
@@ -64,6 +64,9 @@ groups <- split(nodub_combo, nodub_combo$group)
 micro = groups$microorganism
 host = groups$host
 
+# files for blast results on each group
+write.csv(micro, "~/Desktop/microbiome_blast.csv")
+write.csv(host, "~/Desktop/eukaryota_blast.csv")
 
 # get gene ids from each group
 micro_geneids = micro$V1
@@ -71,6 +74,37 @@ host_geneids = host$V1
 
 write(micro_geneids, "micro_geneids.txt")
 write(host_geneids, "host_geneids.txt")
+
+
+# ON SERVER:
+
+# file with gene ids of interest
+conda activate seqtk
+
+# creating microbiome transcriptome
+# do in microbiome directory
+seqtk subseq rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta micro_geneids.txt > microbiome_transcriptome.fasta
+#do in filtered transcriptome directory
+seqtk subseq rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta host_geneids.txt > host_transcriptome.fasta
+
+# kallisto gene ocunts
+conda activate kallisto
+# do in microbiome directory
+kallisto index -i transcripts_microbiome.idx microbiome_transcriptome.fasta 
+#do in filtered transcriptome directory
+kallisto index -i transcripts_host.idx host_transcriptome.fasta 
+
+# gene counts 
+for sample in `cat ./sample_list.txt`
+do
+  kallisto quant -i /large/whelk/microbiome/transcripts_microbiome.idx -o /large/whelk/microbiome/microbiome_kallisto_quant/${sample}_out/ -t 60 /large/whelk/transcriptome/kw_fastq_all_trimmed/${sample}_1_paired.fq.gz /large/whelk/transcriptome/kw_fastq_all_trimmed/${sample}_2_paired.fq.gz
+done
+
+for sample in `cat ./sample_list.txt`
+do
+  kallisto quant -i /large/whelk/transcriptome/transcripts_host.idx -o /large/whelk/transcriptome/filtered_transcriptome_kallisto_quant/${sample}_out/ -t 60 /large/whelk/transcriptome/kw_fastq_all_trimmed/${sample}_1_paired.fq.gz /large/whelk/transcriptome/kw_fastq_all_trimmed/${sample}_2_paired.fq.gz
+done
+
 
 
 
