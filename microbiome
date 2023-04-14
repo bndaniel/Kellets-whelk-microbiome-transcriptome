@@ -107,6 +107,11 @@ done
 
 
 
+# check host_transcriptome busco (how does the size compare?)
+#mollusca
+busco -i ./host_transcriptome.fasta -o ./host_transcriptome_busco_04114023_mollusca -m transcriptome  -l mollusca --cpu 250
+#metazoa
+busco -i ./host_transcriptome.fasta -o ./host_transcriptome_busco_04112023_metazoa -m transcriptome  -l metazoa_odb10 --cpu 250
 
 
 
