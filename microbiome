@@ -26,7 +26,7 @@ blastx -query ./rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta -db ./bl
 blastx -query ./rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta -db ./blastdb_reviewed/pdbaa_archaea -out ./archaea_proteins_blastx_1e-5_table.txt -evalue 1e-5 -outfmt 6
 
 # eukaryota blast
-blastx -query ./rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta -db ./blastdb_reviewed/pdbaa_eukaryota -out ./eukaryota_proteins_blastx_1e-5_table.txt -evalue 1e-5 -outfmt 6
+blastx -query ./rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta -db ./blastdb_reviewed/pdbaa_eukaryota -out ./eukaryota_proteins_blastx_1e-5_table.txt -evalue 1e-5 -outfmt 6 -num_threads 64
 
 
 # in R, add column signifying origin - either microbiome or eukaryota
