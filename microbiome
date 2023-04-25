@@ -52,17 +52,18 @@ e$group = host
 # combining all blasts into one dataframe 
 combo = rbind(v,b,a,e)
 
-# put in order of % identity
+# put in order of % id and then bitscore
 sorted_combo = combo[order(-combo$V3),]
+head(sorted_combo)
+sorted_combo = combo[order(-combo$V12),]
+head(sorted_combo)
 
 # removed dupicate ids
 nodub_combo = sorted_combo[!duplicated(sorted_combo$V1), ]
 
 # seperate into groups: microorganism and eukaryota
-groups <- split(nodub_combo, nodub_combo$group)
-
-micro = groups$microorganism
-host = groups$host
+micro = subset(nodub_combo, group == 'microorganism')
+host = subset(nodub_combo, group == 'host')
 
 # files for blast results on each group
 write.csv(micro, "~/Desktop/microbiome_blast.csv")
