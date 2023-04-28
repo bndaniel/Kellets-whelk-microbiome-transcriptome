@@ -76,6 +76,33 @@ host_geneids = host$V1
 write(micro_geneids, "micro_geneids.txt")
 write(host_geneids, "host_geneids.txt")
 
+# create host_transcriptome based on removal of micro_geneids
+# get all geneids from the transcriptome on server
+grep "^>" ./rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta | cut -d'|' -f3 | cut -d ' ' -f1 > ./geneids.txt
+
+# put into R
+
+# subtract micro_geneids from transcriptome gene ids
+geneids = read.table("geneids.txt", header=FALSE)
+
+# remove ">"
+geneids$V1<-gsub(">","",as.character(geneids$V1))
+
+# ids to remove
+df2 = data.frame(micro_geneids)
+
+# convert to transcriptome gene ids to dataframe
+df = data.frame(geneids)
+
+# removing micro gene ids from transcriptome gene ids
+# df$V1 = transcriptome geneids, df2$V1 = gene ids to remove
+df$V1 %in% df2$V1
+
+# 1448 contaminated gene ids removed
+sorted_df = df$V1 [! df$V1 %in% df2$V1]
+
+# write as a text file
+write(sorted_df, "whelk_geneids.txt")
 
 # ON SERVER:
 
@@ -87,15 +114,17 @@ conda activate seqtk
 seqtk subseq rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta micro_geneids.txt > microbiome_transcriptome.fasta
 #do in filtered transcriptome directory
 seqtk subseq rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta host_geneids.txt > host_transcriptome.fasta
+seqtk subseq rnaspades_assembly_calpoly_annotated_swissprot_nr.fasta whelk_geneids.txt > whelk_transcriptome.fasta
+
 
 # kallisto gene ocunts
 conda activate kallisto
 # do in microbiome directory
 kallisto index -i transcripts_microbiome.idx microbiome_transcriptome.fasta 
 #do in filtered transcriptome directory
-kallisto index -i transcripts_host.idx host_transcriptome.fasta 
+kallisto index -i transcripts_whelk.idx whelk_transcriptome.fasta 
 
-# gene counts 
+# gene counts (make folder ***_kallisto_quant before running)
 for sample in `cat ./sample_list.txt`
 do
   kallisto quant -i /large/whelk/microbiome/transcripts_microbiome.idx -o /large/whelk/microbiome/microbiome_kallisto_quant/${sample}_out/ -t 60 /large/whelk/transcriptome/kw_fastq_all_trimmed/${sample}_1_paired.fq.gz /large/whelk/transcriptome/kw_fastq_all_trimmed/${sample}_2_paired.fq.gz
@@ -103,16 +132,16 @@ done
 
 for sample in `cat ./sample_list.txt`
 do
-  kallisto quant -i /large/whelk/transcriptome/transcripts_host.idx -o /large/whelk/transcriptome/filtered_transcriptome_kallisto_quant/${sample}_out/ -t 60 /large/whelk/transcriptome/kw_fastq_all_trimmed/${sample}_1_paired.fq.gz /large/whelk/transcriptome/kw_fastq_all_trimmed/${sample}_2_paired.fq.gz
+  kallisto quant -i /large/whelk/transcriptome/filtered_spadestranscriptome/transcripts_whelk.idx -o /large/whelk/transcriptome/filtered_spadestranscriptome/whelk_transcriptome_kallisto_quant/${sample}_out/ -t 60 /large/whelk/transcriptome/kw_fastq_all_trimmed/${sample}_1_paired.fq.gz /large/whelk/transcriptome/kw_fastq_all_trimmed/${sample}_2_paired.fq.gz
 done
 
 
 
-# check host_transcriptome busco (how does the size compare?)
+# check host_transcriptome busco (how does the size compare?) slightly smaller
 #mollusca
-busco -i ./host_transcriptome.fasta -o ./host_transcriptome_busco_04114023_mollusca -m transcriptome  -l mollusca --cpu 250
+busco -i ./whelk_transcriptome.fasta -o ./whelk_transcriptome_busco_04114023_mollusca -m transcriptome  -l mollusca --cpu 250
 #metazoa
-busco -i ./host_transcriptome.fasta -o ./host_transcriptome_busco_04112023_metazoa -m transcriptome  -l metazoa_odb10 --cpu 250
+busco -i ./whelk_transcriptome.fasta -o ./whelk_transcriptome_busco_04112023_metazoa -m transcriptome  -l metazoa_odb10 --cpu 250
 
 
 
