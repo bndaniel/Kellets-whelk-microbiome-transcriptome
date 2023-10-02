@@ -24,42 +24,6 @@ spades.py
 #command for transcriptome assembly
 spades.py --rna -1 ./kw_fastq_all_trimmed/combined_1_paired.fq.gz -2 ./kw_fastq_all_trimmed/combined_2_paired.fq.gz -t 64 -m 750 -o rnaspades_04302022
 
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-# Trinity transcriptome assembly
-#creating left and right datasets from paired end combined sequence files from trimmomatic output
-
-LEFT=$SRC_DATA_DIR/combined_1_paired.fq.gz
-RIGHT=$SRC_DATA_DIR/combined_2_paired.fq.gz
-
-#command for trinity assembly (note: FORCE was used to complete assembly)
-docker run --rm -v `pwd`/..:`pwd`/.. trinityrnaseq/trinityrnaseq Trinity --seqType fq --left $LEFT --right $RIGHT --CPU 32 --max_memory 700G --output `pwd`/trinity_assembly_1 --FORCE > trinity_assembly.log 2>&1
-
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-# BUSCO analysis of Transcriptome assemblies 
-
-# RNAspades transcriptome
-#metazoa dataset (C:99%)
-docker run -u $(id -u) -v $(pwd):/busco_wd ezlabgva/busco:v5.3.2_cv1 busco -i ./transcripts.fasta -o ./whelk_spades_busco_output_05032022 -m transcriptome  -l metazoa_odb10 --cpu 60
-
-#mollusca dataset (C:90.5%)
-docker run -u $(id -u) -v $(pwd):/busco_wd ezlabgva/busco:v5.3.2_cv1 busco -i ./transcripts.fasta -o ./whelk_spades_busco_output_05032022_mullusca -m transcriptome  -l mollusca  --cpu 250
-
-
-# Trinity transcriptome 
-#metazoa dataset (C:98.4%)
-docker run -u $(id -u) -v $(pwd):/busco_wd ezlabgva/busco:v5.3.2_cv1 busco -i ./trinity_assembly_1.Trinity.fasta -o ./whelk_trinity_busco_output_05042022_metazoa -m transcriptome  -l metazoa_odb10 --cpu 250
-
-#mollusca dataset (C:88.2%)
-docker run -u $(id -u) -v $(pwd):/busco_wd ezlabgva/busco:v5.3.2_cv1 busco -i ./trinity_assembly_1.Trinity.fasta -o ./whelk_trinity_busco_output_05042022_mollusca -m transcriptome  -l mollusca --cpu 250
-
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-# filtering of RNAspades transcriptome???
-
-
-
-# andy ???
-
-
 
 _____________________________________________________________________________________________________________________________________________________________________________________________
 ### splitting gene ids between microorganism and eukaryota transcriptomes
@@ -203,8 +167,212 @@ busco -i ./whelk_transcriptome.fasta -o ./whelk_transcriptome_busco_04114023_mol
 #metazoa
 busco -i ./whelk_transcriptome.fasta -o ./whelk_transcriptome_busco_04112023_metazoa -m transcriptome  -l metazoa_odb10 --cpu 250
 
+_____________________________________________________________________________________________________________________________________________________________________________________________
+# Deseq2
+
+
+_____________________________________________________________________________________________________________________________________________________________________________________________
+
+# R scripts
+#great bray curtis/pca/nmds plotting:
+
+setwd("~/Desktop")
+kallisto <-read.table("step3_kallisto.isoform.TMM.EXPR.matrix.Monterey_vs_Naples.DESeq2", header = TRUE)
+swissprot_blast_rnaspades_table <- read.delim("~/Desktop/swissprot_blast_rnaspades_table.txt", header=FALSE)
+
+install.packages("ggplot2")
+
+install.packages("vegan")
+
+library(ggplot2)
+
+library(vegan)
+
+library(cluster)
+
+library(tidyr)
+
+setwd("~/Desktop")
+mb <-read.csv("species_count_microbiomeT.csv", header = TRUE)
+summary(mb)
+head(mb)
 
 
 
+#Statistical testing
+
+## calculate the diversity for individual samples
+mb$Sdiv <- diversity(mb[2:362], index = "shannon") # diversity function is part of vegan
+mb$Sdiv
+
+#compare via boxplots
+boxplot(mb$Sdiv ~ mb$location, xlab="Locations", ylab="Shannon Diversity")
+
+#statistical comparison of diversity
+d1 <- aov(mb$Sdiv ~ mb$location)
+summary(d1)
+TukeyHSD(d1)
+
+#do the same but compare north vs south
+#add column group to describe north and south
+group = c("north", "north", "north", "north", "north", "north", "south", "south", "south", "south", "south", "south")
+mb$group = group
+
+#add column group to describe outside vs inside 
+prox = c("outside", "outside", "outside", "inside", "inside", "inside", "inside", "inside", "inside", "outside", "outside", "outside")
+mb$proximity = prox
+
+#add column group to describe mon-nap and dic-pol 
+rand = c("upper", "upper", "upper", "lower", "lower", "lower", "upper", "upper", "upper", "lower", "lower", "lower")
+mb$random = rand
 
 
+boxplot(mb$Sdiv ~ mb$group, xlab="North vs South", ylab="Shannon Diversity")
+
+boxplot(mb$Sdiv ~ mb$proximity, xlab="outside vs inside", ylab="Shannon Diversity")
+
+
+d1 <- aov(mb$Sdiv ~ mb$group)
+summary(d1)
+TukeyHSD(d1)
+
+d2 <- aov(mb$Sdiv ~ mb$proximity)
+summary(d2)
+TukeyHSD(d2)
+
+d3 <- aov(mb$Sdiv ~ mb$random)
+summary(d3)
+TukeyHSD(d3)
+
+
+#distance calculation for bray-curtis dissimilarity (need to reload mb)
+
+rownames(mb) <- mb$location
+mb = mb[,-1]
+
+mb = as.matrix(mb)
+dist = vegdist(mb, method="bray")
+dist
+
+
+# PCA with more customization
+pcoa = cmdscale(dist, k=2, eig=TRUE, add=TRUE)
+pcoa
+positions = pcoa$points
+positions
+colnames(positions) = c("pcoa1", "pcoa2")
+
+positions
+positions = data.frame(positions)
+positions1 = positions
+locations = c("MON", "MON", "MON", "DIC", "DIC", "DIC", "NAP", "NAP", "NAP", "POL", "POL", "POL")
+positions1$locations = locations
+
+positions1
+
+group = c("north", "north", "north", "north", "north", "north", "south", "south", "south", "south", "south", "south")
+positions1$group = group
+
+#PCA comparing all 4 locations
+positions1 %>%
+  as_tibble() %>%
+  ggplot(aes(x=pcoa1, y=pcoa2, colour=locations, shape = group)) +
+  geom_point(size=) + 
+  labs(x="PCo 1 (32.78%)", y="PCo 2 (23.75%)") +
+  scale_shape_manual(values=c(16, 17)) +
+  scale_colour_manual(values=c("blue", "darkgreen", "red", "darkorange"))
+
+
+#PCA comparing north vs south
+positions1 %>%
+  as_tibble() %>%
+  ggplot(aes(x=pcoa1, y=pcoa2, colour=locations, )) +
+  geom_point() +
+  labs(x="PCo 1 (32.78%)", y="PCo 2 (23.75%)") +
+  scale_colour_manual(values=c("blue", "blue", "red", "red"))
+
+
+#sample correlation heatmap
+
+ggplot(mb, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() +
+  geom_text(aes(Var2, Var1, label = value), size = 5)
+
+
+####other methods
+
+rownames(mb) <- mb$location
+mb = mb[,-1]
+
+mb = as.matrix(mb)
+
+#distance calculation for bray-curtis dissimilarity
+dist = vegdist(mb, method="bray")
+dist
+
+
+#NMDS method
+nmds = metaMDS(dist)
+nmds
+scores(nmds) %>%
+  as_tibble(rownames = "location") %>%
+  ggplot(aes(x=NMDS1, y=NMDS2, colour=as.factor(location))) +
+  scale_colour_manual(values=c("1" = "red", "2" = "red", "3" = "red", "4" = "blue", "5" = "blue", "6" = "blue", "7" = "green", "8" = "green", "9" = "green", "10" = "purple", "11" = "purple", "12" = "purple")) +
+  geom_point()
+
+
+# other PCA method
+install.packages("ape")
+library(ape)
+
+#PCA of bray curtis
+PCOA <- pcoa(dist)
+
+PCOA
+
+#sum of first vector (.3277652)
+sum((as.vector(PCA$CA$eig)/sum(PCA$CA$eig))[1:1])
+
+#sum of second vector (.2375306)
+sum((as.vector(PCA$CA$eig)/sum(PCA$CA$eig))[2:2])
+
+#sum of first and second vector (.5604003)
+sum((as.vector(PCA$CA$eig)/sum(PCA$CA$eig))[1:2])
+
+#barplot showing the variance described by each axis (over 50% of variance described by first two)
+barplot(PCOA$values$Relative_eig[1:10])
+
+biplot.pcoa(PCOA, rn="MON", "MON", "MON", "MON")
+
+biplot.pcoa(PCOA, mb)
+
+
+#PCA comparing all 4 locations
+positions1 %>%
+  as_tibble() %>%
+  ggplot(aes(x=pcoa1, y=pcoa2, colour=locations)) +
+  geom_point() +
+  labs(x="PCo 1 (32.78%)", y="PCo 2 (23.75%)") +
+  scale_colour_manual(values=c("blue", "darkgreen", "red", "darkorange"))
+
+#PCA comparing north vs south
+positions1 %>%
+  as_tibble() %>%
+  ggplot(aes(x=pcoa1, y=pcoa2, colour=locations)) +
+  geom_point() +
+  labs(x="PCo 1 (32.78%)", y="PCo 2 (23.75%)") +
+  scale_colour_manual(values=c("blue", "blue", "red", "red"))
+
+#Statistical testing
+
+## calculate the diversity for individual samples
+mb$Sdiv <- diversity(mb[2:362], index = "shannon") # diversity function is part of vegan
+mb$Sdiv
+
+#compare via boxplots
+boxplot(mb$Sdiv ~ mb$location, xlab="Locations", ylab="Shannon Diversity")
+
+#statistical comparison of diversity
+d1 <- aov(mb$Sdiv ~ mb$location)
+summary(d1)
+TukeyHSD(d1)
