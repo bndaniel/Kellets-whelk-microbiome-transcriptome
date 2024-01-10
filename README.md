@@ -1,9 +1,10 @@
 # Kellets whelk *de novo* transcriptome and *de novo* microbiome transcriptome
  
 
-Ben N. Daniels, Chanel De Smet, Jenna Nurge, Cassidy Andrasz, Nicholas Zarate
+Benjamin N Daniels, Jenna Nurge, Chanel De Smet, Olivia Sleeper, Crow White, Jean M Davidson, Pat Fidopiastis
 
-California Polytechnic State University
+Department of Biological Sciences, California Polytechnic State University, San Luis Obispo, CA 93407, USA
+
 <br>
 
 
