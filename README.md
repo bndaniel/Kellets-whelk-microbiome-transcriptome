@@ -1,4 +1,4 @@
-# Kellets whelk *de novo* transcriptome and *de novo* microbiome transcriptome
+# Kellets whelk *de novo* microbiome transcriptome
  
 
 Benjamin N Daniels, Jenna Nurge, Chanel De Smet, Olivia Sleeper, Crow White, Jean M Davidson, Pat Fidopiastis
@@ -7,4 +7,5 @@ Department of Biological Sciences, California Polytechnic State University, San 
 
 <br>
 
+[fig8.pdf](https://github.com/bndaniel/Kellets-whelk-microbiome-transcriptome/files/13895599/fig8.pdf)
 
