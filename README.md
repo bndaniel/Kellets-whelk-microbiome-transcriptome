@@ -6,6 +6,6 @@ Benjamin N Daniels, Jenna Nurge, Chanel De Smet, Olivia Sleeper, Crow White, Jea
 Department of Biological Sciences, California Polytechnic State University, San Luis Obispo, CA 93407, USA
 
 <br>
+<img width="1474" src="https://github.com/bndaniel/Kellets-whelk-microbiome-transcriptome/files/13895599/fig8.pdf">
 
-[fig8.pdf](https://github.com/bndaniel/Kellets-whelk-microbiome-transcriptome/files/13895599/fig8.pdf)
 
